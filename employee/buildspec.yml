@@ -4,19 +4,18 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-      - REPO_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO
-      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+      - export REPO_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO"
+      - export IMAGE_TAG="$(printf '%s' "$CODEBUILD_RESOLVED_SOURCE_VERSION" | cut -c 1-7)"
   build:
     commands:
-      - cd employee
-      - docker build -t $REPO_URI:$IMAGE_TAG -t $REPO_URI:latest .
+      - docker build -t "$REPO_URI:$IMAGE_TAG" -t "$REPO_URI:latest" "$CODEBUILD_SRC_DIR/employee"
   post_build:
     commands:
-      - docker push $REPO_URI:$IMAGE_TAG
-      - docker push $REPO_URI:latest
-      - sed -i "s|<ACCOUNT_ID>|$AWS_ACCOUNT_ID|g" taskdef.json
-      - printf '{"ImageURI":"%s"}' $REPO_URI:$IMAGE_TAG > imageDetail.json
+      - docker push "$REPO_URI:$IMAGE_TAG"
+      - docker push "$REPO_URI:latest"
+      - sed -i "s|<ACCOUNT_ID>|$AWS_ACCOUNT_ID|g" "$CODEBUILD_SRC_DIR/employee/taskdef.json"
+      - printf '{"ImageURI":"%s"}' "$REPO_URI:$IMAGE_TAG" > "$CODEBUILD_SRC_DIR/employee/imageDetail.json"
 artifacts:
   base-directory: employee
   files:
