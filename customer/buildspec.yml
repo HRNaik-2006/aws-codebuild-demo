@@ -1,0 +1,25 @@
+version: 0.2
+# CodeBuild project env vars: AWS_ACCOUNT_ID, AWS_DEFAULT_REGION=ap-southeast-2, ECR_REPO=customer-microservice
+# Privileged mode must be enabled on the project (needed for Docker).
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPO_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+  build:
+    commands:
+      - cd customer
+      - docker build -t $REPO_URI:$IMAGE_TAG -t $REPO_URI:latest .
+  post_build:
+    commands:
+      - docker push $REPO_URI:$IMAGE_TAG
+      - docker push $REPO_URI:latest
+      - sed -i "s|<ACCOUNT_ID>|$AWS_ACCOUNT_ID|g" taskdef.json
+      - printf '{"ImageURI":"%s"}' $REPO_URI:$IMAGE_TAG > imageDetail.json
+artifacts:
+  base-directory: customer
+  files:
+    - appspec.yaml
+    - taskdef.json
+    - imageDetail.json
